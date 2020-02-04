@@ -67,6 +67,8 @@ public class IQFortifyIntegrationService
               logger.info(SonatypeConstants.MSG_DATA_CMP);
               logger.info("startLoad Completed: Passed project mapped used instead of mapping.json");
               //TODO: Save passed mapping to file
+              // TODO: Read myProp.getMapFile(), if passedMapped is present in the file return
+              //       If not, write it to the file.
           }
       } else {
           List<Map<String, String>> applicationList = loadMapping(myProp.getMapFile());
