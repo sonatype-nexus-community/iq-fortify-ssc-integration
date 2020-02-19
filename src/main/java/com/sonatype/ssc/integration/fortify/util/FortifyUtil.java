@@ -387,6 +387,7 @@ public class FortifyUtil
         String projectStage = (String) dataObject.get("stage");
         if (projectStage.equalsIgnoreCase(prjStage)) {
           iqProjectData.setProjectReportURL((String) dataObject.get("reportDataUrl"));
+          iqProjectData.setProjectPublicId((String) dataObject.get("publicId"));
           iqProjectData.setEvaluationDate((String) dataObject.get("evaluationDate"));
           iqProjectData.setProjectReportId(getReportId((String) dataObject.get("reportHtmlUrl")));
           iqProjectData.setProjectStage(prjStage);

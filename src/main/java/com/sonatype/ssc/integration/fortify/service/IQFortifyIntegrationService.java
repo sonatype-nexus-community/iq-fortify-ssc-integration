@@ -25,9 +25,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 import com.sonatype.ssc.integration.fortify.model.*;
+import com.sonatype.ssc.integration.fortify.model.PolicyViolation.Component;
+import com.sonatype.ssc.integration.fortify.model.PolicyViolation.PolicyViolationResponse;
+import com.sonatype.ssc.integration.fortify.model.PolicyViolation.Violation;
 import com.sonatype.ssc.integration.fortify.model.Remediation.RemediationResponse;
 import com.sonatype.ssc.integration.fortify.model.VulnerabilityDetail.VulnDetailResponse;
 import org.apache.log4j.Logger;
@@ -173,6 +178,7 @@ public class IQFortifyIntegrationService
     logger.info(SonatypeConstants.MSG_READ_IQ_1 + project + SonatypeConstants.MSG_READ_IQ_2 + version);
     FortifyUtil fortifyutil = new FortifyUtil();
     String fileName = "";
+
     String iqGetInterAppIdApiURL = myProp.getIqServer() + SonatypeConstants.SSC_APP_ID_URL + project;
 //    logger.debug("** iqGetInterAppIdApiURL: " + iqGetInterAppIdApiURL);
     String projectJSON = iqServerGetCall(iqGetInterAppIdApiURL, myProp.getIqServerUser(),
@@ -193,27 +199,47 @@ public class IQFortifyIntegrationService
       if (iqProjectData.getProjectReportURL() != null && iqProjectData.getProjectReportURL().length() > 0) {
 
         if (isNewLoad(project, version, myProp, iqProjectData)) {
-          String iqGetReportURL = myProp.getIqServer() + iqProjectData.getProjectReportURL();
-          String iqReport = iqServerGetCall(iqGetReportURL, myProp.getIqServerUser(),
+
+          //TODO: Get the policy based report here.
+          String iqProjectReportID = iqProjectData.getProjectReportId();
+          String iqGetPolicyReportApiURL = myProp.getIqServer() + SonatypeConstants.IQ_POLICY_REPORT_URL +
+                  "/" + iqProjectData.getProjectPublicId() + "/reports/" + iqProjectReportID + "/policy";
+          logger.debug("** iqGetPolicyReportApiURL: " + iqGetPolicyReportApiURL);
+//          String iqGetReportURL = myProp.getIqServer() + iqProjectData.getProjectReportURL();
+          String iqPolicyReportResults = iqServerGetCall(iqGetPolicyReportApiURL, myProp.getIqServerUser(),
               myProp.getIqServerPassword());
 
           iqProjectData.setInternalAppId(internalAppId);
-//          logger.debug("** In getIQVulnerabilityData.  After setting internal app id: " + internalAppId);
+          logger.debug("** In getIQVulnerabilityData.  After setting internal app id: " + internalAppId);
 
-          ArrayList<IQProjectVulnerability> finalProjectVulMap = readVulData(iqReport, myProp, iqProjectData);
+          //TODO: Parse the results of the policy violation report
+          try {
+            PolicyViolationResponse policyViolationResponse =
+                    (new ObjectMapper()).readValue(iqPolicyReportResults,
+                            PolicyViolationResponse.class);
 
-          String projectIQReportURL = String.format(
-                  "%s/%s/%s/%s",
-                  SonatypeConstants.IQ_REPORT_URL,
-                  iqProjectData.getProjectName(),
-                  iqProjectData.getProjectReportId(),
-                  myProp.getIqReportType()
-          );
+            ArrayList<IQProjectVulnerability> finalProjectVulMap =  parsePolicyViolationResults(policyViolationResponse, myProp, iqProjectData);
 
-          iqProjectData.setProjectIQReportURL(projectIQReportURL);
+//          ArrayList<IQProjectVulnerability> finalProjectVulMap = readVulData(iqPolicyReport, myProp, iqProjectData);
 
-          fileName = fortifyutil.createJSON(iqProjectData, finalProjectVulMap, myProp.getIqServer(),
-              myProp.getLoadLocation());
+            String projectIQReportURL = String.format(
+                    "%s/%s/%s/%s",
+                    SonatypeConstants.IQ_REPORT_URL,
+                    iqProjectData.getProjectName(),
+                    iqProjectData.getProjectReportId(),
+                    myProp.getIqReportType()
+            );
+
+            iqProjectData.setProjectIQReportURL(projectIQReportURL);
+
+            fileName = fortifyutil.createJSON(iqProjectData, finalProjectVulMap, myProp.getIqServer(),
+                    myProp.getLoadLocation());
+
+
+          } catch (Exception e) {
+            logger.error(e.getMessage());
+          }
+
         }
         else {
           logger.info(SonatypeConstants.MSG_EVL_SCAN_SAME_1 + project + SonatypeConstants.MSG_EVL_SCAN_SAME_2
@@ -231,6 +257,37 @@ public class IQFortifyIntegrationService
     }
 
     return fileName;
+  }
+
+  private ArrayList<IQProjectVulnerability> parsePolicyViolationResults(PolicyViolationResponse policyViolationResponse,
+                                                        IQProperties myProp,
+                                                        IQProjectData iqProjectData) {
+
+    ArrayList<IQProjectVulnerability> finalProjectVulMap = new ArrayList<>();
+    Pattern pattern = Pattern.compile("Found security vulnerability (.*) with");
+      List<Component> components = policyViolationResponse.getComponents();
+      for (Component component:components) {
+        if (component.getViolations() != null && component.getViolations().size() > 0) {
+          for (Violation violation : component.getViolations()) {
+            // If the violation is waived and is not a security category
+            if (violation.getWaived() || !(violation.getPolicyThreatCategory().equalsIgnoreCase("SECURITY"))) {
+              continue;
+            }
+            IQProjectVulnerability iqPrjVul = new IQProjectVulnerability();
+            iqPrjVul.setUniqueId(violation.getPolicyViolationId());
+            //TODO - The CVE needs to be parsed out of the constraint
+            Matcher matcher = pattern.matcher(violation.getConstraints().get(0).getConditions().get(0).getConditionReason());
+            String CVE = matcher.group();
+            logger.debug("CVE: " + CVE);
+
+            //TODO - Get the vulnerability detail
+            finalProjectVulMap.add(iqPrjVul);
+          }
+
+
+        }
+      }
+    return finalProjectVulMap;
   }
 
   private ArrayList<IQProjectVulnerability> readVulData(String iqReport,
