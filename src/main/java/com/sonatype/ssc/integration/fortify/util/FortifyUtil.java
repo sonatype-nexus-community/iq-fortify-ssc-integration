@@ -240,7 +240,7 @@ public class FortifyUtil
         JSONObject vul = new JSONObject();
         vul.put("uniqueId", uniqueId);
         vul.put("issue", iqProjectVul.getIssue());
-        vul.put("category", "Vulnerable OSS : " + iqProjectVul.getIssue().toUpperCase());
+        vul.put("category", "Vulnerable OSS");
         vul.put("identificationSource", iqProjectVul.getIdentificationSource());
         vul.put("cveurl", iqProjectVul.getCveurl());
         vul.put("reportUrl", String.format("%s%s", iqServerURL, iqPrjData.getProjectIQReportURL()));
@@ -262,6 +262,7 @@ public class FortifyUtil
         vul.put("customStatus", iqProjectVul.getCustomStatus());
         vul.put("classifier", iqProjectVul.getClassifier());
         vul.put("effectiveLicense", iqProjectVul.getEffectiveLicense());
+        vul.put("recommendedVersion", StringUtils.defaultString(parseRemediationResponse(iqProjectVul.getRemediationResponse(), iqProjectVul)));
         vul.put(CONT_PACK_URL, iqProjectVul.getPackageUrl());
         Map<String, String> compDataMap = getCompData(iqProjectVul, iqProjectVul.getCompReportDetails());
         vul.put(CONT_CAT, compDataMap.get(CONT_CAT));
@@ -327,7 +328,7 @@ public class FortifyUtil
     String desc = "";
     // TODO: Format the markdown for SSC
     desc =  "<strong>Recommended Version(s): </strong>" +
-            StringUtils.defaultString(parseRemediationResponse(iqProjectVul.getRemediationResponse(), iqProjectVul)) +
+            StringUtils.defaultString(parseRemediationResponse(iqProjectVul.getRemediationResponse(), iqProjectVul)) + "\r\n\r\n" +
             StringUtils.defaultString(vulnDetail.getDescription()) + "\r\n\r\n<strong>Explanation: </strong>" +
             StringUtils.defaultString(vulnDetail.getExplanationMarkdown()) + "\r\n\r\n<strong>Detection: </strong>" +
             StringUtils.defaultString(vulnDetail.getDetectionMarkdown()) + "\r\n\r\n<strong>Recommendation: </strong>" +

@@ -781,7 +781,6 @@ public class IQFortifyIntegrationService
       String apiURL = myProp.getSscServer() + SonatypeConstants.FILE_UPLOAD_URL;
       WebTarget resource = client.target(apiURL + getFileToken(myProp));
 
-
       FileDataBodyPart fileDataBodyPart = new FileDataBodyPart(SonatypeConstants.FILE, file,
           MediaType.APPLICATION_OCTET_STREAM_TYPE);
       try (MultiPart multiPart = new FormDataMultiPart()
