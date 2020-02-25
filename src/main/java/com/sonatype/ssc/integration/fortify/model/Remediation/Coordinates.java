@@ -31,6 +31,9 @@ public class Coordinates {
     private String groupId;
     @JsonProperty("version")
     private String version;
+    @JsonProperty("qualifier")
+    private String qualifier;
+
     @JsonIgnore
     private Map<String, Object> additionalProperties = new HashMap<String, Object>();
 
@@ -42,6 +45,16 @@ public class Coordinates {
     @JsonProperty("artifactId")
     public void setArtifactId(String artifactId) {
         this.artifactId = artifactId;
+    }
+
+    @JsonProperty("qualifier")
+    public String getQualifier() {
+        return qualifier;
+    }
+
+    @JsonProperty("qualifier")
+    public void setQualifier(String qualifier) {
+        this.qualifier = qualifier;
     }
 
     @JsonProperty("classifier")

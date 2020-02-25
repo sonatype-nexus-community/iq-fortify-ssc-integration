@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 public class PolicyViolationResponse {
 
     @JsonProperty("reportTime")
-    private Integer reportTime;
+    private long reportTime;
     @JsonProperty("reportTitle")
     private String reportTitle;
     @JsonProperty("application")
@@ -35,12 +35,12 @@ public class PolicyViolationResponse {
     private Map<String, Object> additionalProperties = new HashMap<String, Object>();
 
     @JsonProperty("reportTime")
-    public Integer getReportTime() {
+    public long getReportTime() {
         return reportTime;
     }
 
     @JsonProperty("reportTime")
-    public void setReportTime(Integer reportTime) {
+    public void setReportTime(long reportTime) {
         this.reportTime = reportTime;
     }
 
