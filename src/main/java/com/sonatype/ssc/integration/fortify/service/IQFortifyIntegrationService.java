@@ -289,34 +289,56 @@ public class IQFortifyIntegrationService
               logger.debug("CVE: " + CVE);
               iqPrjVul.setIssue(CVE);
               iqPrjVul.setCveurl(StringUtils.defaultString(getVulnDetailURL(CVE, myProp)));
-              iqPrjVul.setName(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getArtifactId()));
+
               iqPrjVul.setUniqueId(StringUtils.defaultString(violation.getPolicyViolationId()));
               iqPrjVul.setPackageUrl(StringUtils.defaultString(component.getPackageUrl()));
               iqPrjVul.setHash(StringUtils.defaultString(component.getHash()));
-              iqPrjVul.setFormat(StringUtils.defaultString(component.getComponentIdentifier().getFormat()));
-              iqPrjVul.setArtifact(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getArtifactId()));
-              iqPrjVul.setClassifier(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getClassifier()));
-              iqPrjVul.setExtension(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getExtension()));
-              iqPrjVul.setGroup(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getGroupId()));
-              iqPrjVul.setVersion(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getVersion()));
+              if (component.getComponentIdentifier().getFormat().equalsIgnoreCase("composer")) {
+                logger.debug("Component Identifier is composer: " + component.getComponentIdentifier().toString());
+                iqPrjVul.setFileName(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getAdditionalProperties().get("name").toString()));
+                iqPrjVul.setFormat(StringUtils.defaultString(component.getComponentIdentifier().getFormat()));
+                iqPrjVul.setName(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getAdditionalProperties().get("name").toString()));
+                iqPrjVul.setGroup(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getGroupId()));
+                logger.debug("******** NAME: " + StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getAdditionalProperties().get("name").toString()));
+                iqPrjVul.setVersion(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getVersion()));
+              } else {
+                iqPrjVul.setFileName(StringUtils.defaultString(String.join("\r\n", component.getPathnames())));
+                iqPrjVul.setName(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getArtifactId()));
+                iqPrjVul.setFormat(StringUtils.defaultString(component.getComponentIdentifier().getFormat()));
+                iqPrjVul.setArtifact(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getArtifactId()));
+                iqPrjVul.setClassifier(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getClassifier()));
+                iqPrjVul.setExtension(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getExtension()));
+                iqPrjVul.setGroup(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getGroupId()));
+                iqPrjVul.setVersion(StringUtils.defaultString(component.getComponentIdentifier().getCoordinates().getVersion()));
+              }
+
 //              iqPrjVul.setMatchState(StringUtils.defaultString(component.getMatchState()));
-              iqPrjVul.setFileName(StringUtils.defaultString(String.join("\r\n", component.getPathnames())));
+
               iqPrjVul.setSonatypeThreatLevel(StringUtils.defaultString(violation.getPolicyThreatLevel().toString()));
 
-              String vulDetailRest = getVulnDetailRest(CVE, myProp);
+              String vulDetailRest = getVulnDetailRestURL(CVE, myProp);
+              logger.debug("vulDetailRest: " + vulDetailRest);
               String strResponseVulnDetails = iqServerGetCall(vulDetailRest, myProp.getIqServerUser(), myProp.getIqServerPassword());
-              try {
-                VulnDetailResponse vulnDetailResponse =
-                      (new ObjectMapper()).readValue(strResponseVulnDetails, VulnDetailResponse.class);
-                if (vulnDetailResponse != null) {
-                  iqPrjVul.setVulnDetail(vulnDetailResponse);
+
+              if (strResponseVulnDetails.equalsIgnoreCase("UNKNOWN")) {
+                iqPrjVul.setVulnDetail(null);
+                // Don't get the vuln details if we don't have
+              } else {
+                try {
+                  VulnDetailResponse vulnDetailResponse =
+                          (new ObjectMapper()).readValue(strResponseVulnDetails, VulnDetailResponse.class);
+                  if (vulnDetailResponse != null) {
+                    iqPrjVul.setVulnDetail(vulnDetailResponse);
 //                logger.error("** Setting response for vulnerability details.");
-                }
+                  }
 //              logger.debug("*** Andres: " + response.toString());
 
-              } catch (Exception e) {
-                logger.error("vulDetailRest: " + e.getMessage());
+                } catch (Exception e) {
+                  logger.error("vulDetailRest: " + e.getMessage());
+                }
               }
+
+
             // TODO: Get remediation API results without escaped quotes
             try {
 //              logger.debug("*** BEFORE compReportURL: " + iqPrjVul.getFormat());
@@ -436,7 +458,7 @@ public class IQFortifyIntegrationService
     return vulnDetailURL;
   }
 
-  private String getVulnDetailRest(String CVE, IQProperties myProp) {
+  private String getVulnDetailRestURL(String CVE, IQProperties myProp) {
     // Update to new vulnerability rest API
     // GET /api/v2/vulnerabilities/{vulnerabilityId}
     String vulnDetailRest = "";
@@ -480,7 +502,9 @@ public class IQFortifyIntegrationService
       dataFromIQ = response.readEntity(String.class);long end = System.currentTimeMillis();
         logger.debug("*** iqServetGetCall ( " + apiUrl + ") Response time: " + (end - start) + " ms");
 
-
+       if (response.getStatus() == 404) {
+          return "UNKNOWN";
+       }
       return dataFromIQ;
     }
     catch (Exception e) {
